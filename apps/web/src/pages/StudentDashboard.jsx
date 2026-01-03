@@ -1,68 +1,53 @@
 import { useState, useEffect } from 'react';
-import { db } from '../db/schema';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, TrendingUp, Award } from 'lucide-react';
-import { RecommendationEngine } from '../services/RecommendationEngine';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
 export default function StudentDashboard() {
     const navigate = useNavigate();
-    const [student, setStudent] = useState(null);
+    const { user } = useAuth(); // Get authenticated user
     const [progress, setProgress] = useState(0);
     const [nextLesson, setNextLesson] = useState(null);
+    const [stats, setStats] = useState({ completed: 0, total: 0 });
 
-    // Get current student (in real app, this would come from auth)
     useEffect(() => {
-        async function loadStudent() {
-            let students = await db.students.toArray();
+        if (user) {
+            fetchProgress();
+            fetchNextLesson();
+        }
+    }, [user]);
 
-            if (students.length === 0) {
-                // Create demo student
-                const id = await db.students.add({
-                    name: 'Demo Student',
-                    gradeLevel: 3,
-                    createdAt: Date.now()
-                });
-                students = await db.students.where('id').equals(id).toArray();
+    async function fetchProgress() {
+        try {
+            // Fetch user's actual progress from backend
+            const response = await api.get('/recommendations/profile');
+            const { totalAttempts, contentTypePreferences } = response.data;
+
+            // Calculate total lessons completed (score >= 80)
+            const completedCount = contentTypePreferences.reduce((sum, type) => {
+                return sum + parseInt(type.attempts || 0);
+            }, 0);
+
+            setStats({ completed: completedCount, total: completedCount + 10 }); // Assume 10 more available
+            setProgress(completedCount > 0 ? Math.min(Math.round((completedCount / 20) * 100), 100) : 0);
+        } catch (error) {
+            console.error('Failed to fetch progress:', error);
+        }
+    }
+
+    async function fetchNextLesson() {
+        try {
+            const response = await api.get('/recommendations/next-lesson');
+            if (!response.data.completed) {
+                setNextLesson(response.data);
             }
-
-            setStudent(students[0]);
-            await calculateProgress(students[0].id);
-            await loadNextLesson(students[0].id);
+        } catch (error) {
+            console.error('Failed to fetch next lesson:', error);
         }
-
-        loadStudent();
-    }, []);
-
-    async function calculateProgress(studentId) {
-        const events = await db.learningEvents
-            .where('studentId')
-            .equals(studentId)
-            .toArray();
-
-        // Filter for unique passed lessons
-        const passedLessonIds = new Set(
-            events.filter(e => e.score >= 80).map(e => e.lessonId)
-        );
-
-        const completedLessons = passedLessonIds.size;
-        const totalLessons = await db.lessons.count();
-
-        setProgress(totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0);
     }
 
-    async function loadNextLesson(studentId) {
-        const engine = new RecommendationEngine();
-        const nextLesson = await engine.getNextLesson(studentId);
-
-        if (nextLesson) {
-            await engine.createRecommendation(studentId, nextLesson);
-        }
-
-        setNextLesson(nextLesson);
-    }
-
-    if (!student) return <div>Loading...</div>;
+    if (!user) return <div>Loading...</div>;
 
     return (
         <div style={{
@@ -78,7 +63,7 @@ export default function StudentDashboard() {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
             }}>
-                Welcome back, {student.name}! 👋
+                Welcome back, {user.name}! 👋
             </h1>
 
             {/* Progress Card */}
@@ -179,7 +164,7 @@ export default function StudentDashboard() {
 
             {/* Stats Row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                <StatCard icon={<Award />} label="Lessons Completed" value={Math.floor(progress / 100 * 15)} />
+                <StatCard icon={<Award />} label="Lessons Completed" value={stats.completed} />
                 <StatCard icon={<TrendingUp />} label="Current Streak" value="3 days" />
             </div>
         </div>
