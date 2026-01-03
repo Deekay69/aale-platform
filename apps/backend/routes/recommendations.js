@@ -122,10 +122,31 @@ class MABEngine {
 // API endpoint
 router.get('/next-lesson', authenticateToken, async (req, res) => {
     try {
+        const studentId = req.user.id;
         const engine = new MABEngine();
-        const nextLesson = await engine.getNextLesson(req.user.id);
+        let nextLesson = await engine.getNextLesson(studentId);
 
+        // --- NEW: Review Mode Logic ---
         if (!nextLesson) {
+            // If all lessons are mastered, find the one with the lowest score for review
+            const reviewResult = await pool.query(
+                `SELECT l.*, le.score 
+                 FROM lessons l
+                 JOIN learning_events le ON l.id = le.lesson_id
+                 WHERE le.student_id = $1
+                 ORDER BY le.score ASC, le.completed_at ASC
+                 LIMIT 1`,
+                [studentId]
+            );
+
+            if (reviewResult.rows.length > 0) {
+                return res.json({
+                    ...reviewResult.rows[0],
+                    isReview: true,
+                    message: "Course complete! Let's review some key concepts."
+                });
+            }
+
             return res.json({
                 message: 'All lessons completed! Great job!',
                 completed: true
