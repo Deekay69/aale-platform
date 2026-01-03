@@ -21,7 +21,7 @@ export default function StudentDashboard() {
     async function fetchProgress() {
         try {
             // Fetch user's actual progress from backend
-            const response = await api.get('/recommendations/profile');
+            const response = await api.get('/api/recommendations/profile');
             const { totalAttempts, contentTypePreferences } = response.data;
 
             // Calculate total lessons completed (score >= 80)
@@ -38,7 +38,7 @@ export default function StudentDashboard() {
 
     async function fetchNextLesson() {
         try {
-            const response = await api.get('/recommendations/next-lesson');
+            const response = await api.get('/api/recommendations/next-lesson');
             if (!response.data.completed) {
                 setNextLesson(response.data);
             }
