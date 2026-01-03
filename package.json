@@ -6,6 +6,8 @@
     "packages/*"
   ],
   "scripts": {
+    "start": "npm start -w aale-backend",
+    "migrate": "npm run migrate -w aale-backend",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
