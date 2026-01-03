@@ -5,6 +5,7 @@
 
 const axios = require('axios');
 const pool = require('../config/database');
+const { kenyanize } = require('./kenyanize-content');
 
 /**
  * Oak National Academy API Integration
@@ -175,12 +176,29 @@ async function main() {
             try {
                 await client.query('BEGIN');
 
-                for (const lesson of lessons) {
-                    await client.query(
-                        `INSERT INTO lessons (title, subject, difficulty, content_type, content_data)
-             VALUES ($1, $2, $3, $4, $5)`,
-                        [lesson.title, lesson.subject, lesson.difficulty, lesson.content_type, JSON.stringify(lesson.content_data)]
-                    );
+                for (let lesson of lessons) {
+                    console.log(`🇰🇪 Kenyanizing: ${lesson.title}...`);
+                    const localizedLesson = await kenyanize(lesson, lesson.subject, lesson.difficulty);
+
+                    if (localizedLesson) {
+                        await client.query(
+                            `INSERT INTO lessons (title, subject, difficulty, content_type, content_data)
+                             VALUES ($1, $2, $3, $4, $5)`,
+                            [
+                                localizedLesson.title,
+                                lesson.subject,
+                                lesson.difficulty,
+                                lesson.content_type,
+                                JSON.stringify(localizedLesson)
+                            ]
+                        );
+                        console.log(`✅ Saved: ${localizedLesson.title}`);
+                    } else {
+                        console.log(`⚠️  Skipped: ${lesson.title} (Kenyanization failed)`);
+                    }
+
+                    // Delay to avoid AI rate limits
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
 
                 await client.query('COMMIT');
