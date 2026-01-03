@@ -5,6 +5,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const syncRoutes = require('./routes/sync');
 const teacherRoutes = require('./routes/teacher');
+const recommendationRoutes = require('./routes/recommendations');
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/teacher', teacherRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

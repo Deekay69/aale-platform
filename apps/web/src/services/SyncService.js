@@ -1,9 +1,9 @@
 import { db } from '../db/schema';
 import toast from 'react-hot-toast';
+import api from './api';
 
 export class SyncService {
     constructor() {
-        this.apiUrl = 'https://your-backend-api.com/sync'; // Replace with actual backend
         this.isSyncing = false;
     }
 
@@ -49,20 +49,20 @@ export class SyncService {
                 timestamp: Date.now()
             };
 
-            // Send to server (mock for now)
-            const response = await this.mockSync(payload);
+            // Send to server
+            const response = await api.post('/api/sync/events', payload);
 
-            if (response.success) {
+            if (response.data.success) {
                 // Mark events as synced
                 await db.learningEvents.bulkUpdate(
-                    unsyncedEvents.map(e => ({ key: e.id, changes: { synced: true } }))
+                    unsyncedEvents.map(e => ({ key: e.id, changes: { synced: 1 } })) // 1 = true in Dexie
                 );
 
                 toast.dismiss();
-                toast.success(`✅ Synced ${unsyncedEvents.length} events!`);
+                toast.success(`✅ Synced ${response.data.total} events!`);
 
                 this.isSyncing = false;
-                return { success: true, synced: unsyncedEvents.length };
+                return { success: true, synced: response.data.inserted };
             }
 
             throw new Error('Sync failed');
@@ -76,15 +76,7 @@ export class SyncService {
         }
     }
 
-    // Mock sync for demo (replace with real API call)
-    async mockSync(payload) {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                console.log('Mock sync successful:', payload);
-                resolve({ success: true });
-            }, 1500);
-        });
-    }
+
 
     async getSyncStatus() {
         const unsyncedCount = await db.learningEvents
