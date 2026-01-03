@@ -58,6 +58,12 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('token');
         setToken(null);
         setUser(null);
+
+        // CRITICAL: Clear all local data to prevent cross-user contamination
+        if (typeof indexedDB !== 'undefined') {
+            // Clear Dexie database
+            indexedDB.deleteDatabase('AALELocalDB');
+        }
     };
 
     return (
